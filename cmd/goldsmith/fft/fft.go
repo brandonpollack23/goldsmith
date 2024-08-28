@@ -1,43 +1,48 @@
 package fft
 
 import (
-	"time"
-
 	"github.com/gopxl/beep"
 	"github.com/mjibson/go-dsp/fft"
 )
 
-type FFTStreamer struct {
+const (
+	bufferSizes = 5
+)
+
+type FFTStreamer interface {
+	beep.Streamer
+	FFTChan() <-chan FFTWindow
+}
+
+type fftstreamer struct {
 	s                    beep.Streamer
 	fftWindowSize        uint32
 	fftWindowBuffer      [][2]float64
 	fftWindowBufferStart int
 
 	fftInputChan  chan [][2]float64
-	FFTWindowChan <-chan FFTWindow
+	fftWindowChan <-chan FFTWindow
 }
 
-func NewFFTStreamer(streamer beep.Streamer, targetFPS uint32, format beep.Format) FFTStreamer {
-	fftWindowSize := format.SampleRate.N(time.Duration(float64(time.Second) / float64(targetFPS)))
+func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Format) fftstreamer {
+	internalBufferSize := fftWindowSize * bufferSizes
 
-	internalBufferSize := fftWindowSize * 2
-
-	fftInputChan := make(chan [][2]float64, 2)
-	fftOutputChan := make(chan FFTWindow, 2)
+	fftInputChan := make(chan [][2]float64, bufferSizes)
+	fftOutputChan := make(chan FFTWindow, bufferSizes)
 	go doFFTs(fftInputChan, fftOutputChan, fftWindowSize)
 
-	return FFTStreamer{
+	return fftstreamer{
 		s:                    streamer,
 		fftWindowSize:        uint32(fftWindowSize),
 		fftWindowBuffer:      make([][2]float64, internalBufferSize),
 		fftWindowBufferStart: internalBufferSize,
 
 		fftInputChan:  fftInputChan,
-		FFTWindowChan: fftOutputChan,
+		fftWindowChan: fftOutputChan,
 	}
 }
 
-func (f *FFTStreamer) Stream(samples [][2]float64) (int, bool) {
+func (f *fftstreamer) Stream(samples [][2]float64) (int, bool) {
 	copiedFromLastRead := copy(samples, f.fftWindowBuffer[f.fftWindowBufferStart:])
 	if copiedFromLastRead == len(samples) {
 		f.fftWindowBufferStart += copiedFromLastRead
@@ -48,7 +53,7 @@ func (f *FFTStreamer) Stream(samples [][2]float64) (int, bool) {
 	copiedThisRead := copy(samples[copiedFromLastRead:], f.fftWindowBuffer)
 	f.fftWindowBufferStart = copiedThisRead
 
-	var fftCopy [][2]float64
+	fftCopy := make([][2]float64, len(f.fftWindowBuffer))
 	copy(fftCopy, f.fftWindowBuffer)
 	f.fftInputChan <- fftCopy
 
@@ -59,8 +64,12 @@ func (f *FFTStreamer) Stream(samples [][2]float64) (int, bool) {
 	return copiedFromLastRead + copiedThisRead, ok
 }
 
-func (f *FFTStreamer) Err() error {
+func (f *fftstreamer) Err() error {
 	return nil
+}
+
+func (f *fftstreamer) FFTChan() <-chan FFTWindow {
+	return f.fftWindowChan
 }
 
 type FFTWindow struct {

@@ -78,8 +78,23 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 
 	// I can also use beep.Resample around the streamer to always use a specific
 	// output sample rate for everything no matter the input.
-	fftStreamer := fft.NewFFTStreamer(streamer, targetFPS, format)
-	speaker.PlayAndWait(&fftStreamer)
+	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
+	fftWindowSize := format.SampleRate.N(windowDuration)
+	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
+	speaker.Play(&fftStreamer)
+
+	err = loop(&fftStreamer, windowDuration)
+	return err
+}
+
+func loop(s fft.FFTStreamer, windowDuration time.Duration) error {
+	for {
+		select {
+		case <-time.After(windowDuration):
+			fftWindow := <-s.FFTChan()
+			fmt.Println(fftWindow.Data)
+		}
+	}
 
 	return nil
 }
