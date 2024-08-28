@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/brandonpollack23/goldsmith/fft"
+	"github.com/brandonpollack23/goldsmith/vis"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
@@ -19,6 +20,7 @@ import (
 // TODO display playback bar at the bottom with timestamp and max time etc.
 // TODO Volume with beep
 // TODO other beep effects?
+// TODO other visualizers and flag to choose
 // TODO add CTRL for play/pause
 
 var targetFPS uint32
@@ -83,16 +85,17 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 	speaker.Play(&fftStreamer)
 
-	err = loop(&fftStreamer, windowDuration)
+	visualizer := vis.NewHorizontalBarsVisualizer(64)
+	err = loop(&fftStreamer, windowDuration, visualizer)
 	return err
 }
 
-func loop(s fft.FFTStreamer, windowDuration time.Duration) error {
+func loop(s fft.FFTStreamer, windowDuration time.Duration, visualizer vis.Visualizer) error {
 	for {
 		select {
 		case <-time.After(windowDuration):
 			fftWindow := <-s.FFTChan()
-			fmt.Println(fftWindow.Data)
+			visualizer.UpdateVisualizer(vis.NewFFTData{fftWindow.Data})
 		}
 	}
 
