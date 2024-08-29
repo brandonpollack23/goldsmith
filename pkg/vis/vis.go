@@ -2,15 +2,18 @@ package vis
 
 import (
 	"fmt"
+	"math"
+	"math/cmplx"
 	"os"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TODO add exit input
-// TODO make horizontal bars instead of a string.
+// TODO separate out bars from shared.
+// TODO make vertical bars
 
 // Shared visualizer information.
 
@@ -58,15 +61,22 @@ func WithKeymap(k Keymap) VisualizerOption {
 // HorizontalBarsModel implementation.
 
 type HorizontalBarsModel struct {
-	fftData []complex128
-	bars    []progress.Model
-	keymap  Keymap
+	fftData      []complex128
+	bars         []progress.Model
+	maxBarHeight int
+	keymap       Keymap
 }
 
-func NewHorizontalBarsVisualizer(numBars int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
+func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
+	bars := make([]progress.Model, numBars)
+	for i := range bars {
+		bars[i] = progress.New(progress.WithDefaultGradient())
+	}
+
 	m := HorizontalBarsModel{
-		bars:   make([]progress.Model, numBars),
-		keymap: defaultKeymap,
+		bars:         bars,
+		keymap:       defaultKeymap,
+		maxBarHeight: maxBarHeight,
 	}
 
 	for _, opt := range opts {
@@ -94,6 +104,8 @@ func (m HorizontalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case NewFFTData:
 		m.fftData = msg.Data
+		return m, nil
+
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 	}
@@ -110,9 +122,37 @@ func (m HorizontalBarsModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m HorizontalBarsModel) View() string {
-	return fmt.Sprintf("%v", m.fftData)
+	aggregateBars := make([]float64, len(m.bars))
+
+	// TODO maybe use phase to determine color or width or something?
+	// TODO set the max number of bars equal to fftData window size.
+	// First aggregate bars together from fft window to match requested number of bars.
+	// And also convert to logarithmic scale.
+	barsToAggregate := len(m.fftData) / len(m.bars)
+	for bi := range m.bars {
+		for i := range barsToAggregate {
+			aggregateBars[bi] += cmplx.Abs(m.fftData[bi*barsToAggregate+i])
+		}
+		aggregateBars[bi] = math.Log1p(aggregateBars[bi])
+		aggregateBars[bi] /= 5
+	}
+
+	// var sb strings.Builder
+	// fmt.Fprintf(&sb, "Num bars: %d, bars aggregated: %d\n", len(m.bars), barsToAggregate)
+	// fmt.Fprintf(&sb, "max %f\n", slices.Max(aggregateBars))
+	// for _, value := range aggregateBars {
+	// 	fmt.Fprintf(&sb, "%.1f ", value)
+	// }
+
+	// TODO remove all the bars, can just use one?
+	var sb strings.Builder
+	for i, barValue := range aggregateBars {
+		fmt.Fprintf(&sb, "%s\n\n", m.bars[i].ViewAs(barValue))
+	}
+
+	return sb.String()
 }
 
-func (m HorizontalBarsModel) SetKeymap(k Keymap) {
+func (m *HorizontalBarsModel) SetKeymap(k Keymap) {
 	m.keymap = k
 }

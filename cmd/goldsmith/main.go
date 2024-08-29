@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -73,7 +74,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 
 	speaker.Play(&fftStreamer)
-	visualizer := vis.NewHorizontalBarsVisualizer(64)
+	visualizer := vis.NewHorizontalBarsVisualizer(64, int(math.Pow(2, float64(8*format.Precision))))
 
 	err = loop(&fftStreamer, windowDuration, visualizer)
 	return err
@@ -84,7 +85,7 @@ func loop(s fft.FFTStreamer, windowDuration time.Duration, visualizer vis.Visual
 		select {
 		case <-time.After(windowDuration):
 			fftWindow := <-s.FFTChan()
-			visualizer.UpdateVisualizer(vis.NewFFTData{fftWindow.Data})
+			visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
 		}
 	}
 

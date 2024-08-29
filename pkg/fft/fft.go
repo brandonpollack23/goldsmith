@@ -78,6 +78,8 @@ type FFTWindow struct {
 }
 
 func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWindowSize int) {
+	// TODO apply windowing to get rid of harmonics from discontinuities at the end of chunks (eg make each chunk appear more periodic).
+	// https://download.ni.com/evaluation/pxi/Understanding%20FFTs%20and%20Windowing.pdf
 	for inChunk := range fftInputChan {
 		for _, in := range splitSlices(inChunk, fftWindowSize) {
 			timeDomain := toMono(in)
