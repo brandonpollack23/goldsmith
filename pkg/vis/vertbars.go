@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -74,6 +75,7 @@ func (m VerticalBarsModel) Init() tea.Cmd {
 }
 
 func (m VerticalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.lastFrameTime = time.Now()
 	switch msg := msg.(type) {
 	case NewFFTData:
 		m.fftData = msg.Data

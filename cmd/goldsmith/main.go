@@ -19,7 +19,7 @@ import (
 // TODO display playback bar at the bottom with timestamp and max time etc.
 // TODO Volume with beep
 // TODO other beep effects?
-// TODO other visualizers and flag to choose
+// TODO animations on bars using harmonica (like progress has)?
 // TODO add CTRL for play/pause
 
 var (
@@ -96,20 +96,16 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	err = loop(&fftStreamer, windowDuration, visualizer)
-	return err
-}
-
-func loop(s fft.FFTStreamer, windowDuration time.Duration, visualizer vis.Visualizer) error {
-	for {
-		select {
-		case <-time.After(windowDuration):
-			fftWindow := <-s.FFTChan()
-			visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
-		}
-	}
+	uiUpdateLoop(&fftStreamer, visualizer)
 
 	return nil
+}
+
+func uiUpdateLoop(s fft.FFTStreamer, visualizer vis.Visualizer) {
+	for range s.FFTUpdateSignal() {
+		fftWindow := <-s.FFTChan()
+		visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
+	}
 }
 
 func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, error) {

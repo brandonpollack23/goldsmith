@@ -13,6 +13,9 @@ const (
 // FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
 type FFTStreamer interface {
 	beep.Streamer
+	// Synchronization signal to update FFT to display.
+	FFTUpdateSignal() <-chan struct{}
+	// Channel that contains FFT window data.
 	FFTChan() <-chan FFTWindow
 }
 
@@ -24,6 +27,10 @@ type FFTStreamerImpl struct {
 
 	fftInputChan  chan [][2]float64
 	fftWindowChan <-chan FFTWindow
+
+	// Synchronization signal to update FFT to display.
+	FFTUpdateSignalChan  chan struct{}
+	bytesSinceLastWindow uint32
 }
 
 func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Format) FFTStreamerImpl {
@@ -39,13 +46,16 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Forma
 		fftWindowBuffer:      make([][2]float64, internalBufferSize),
 		fftWindowBufferStart: internalBufferSize,
 
-		fftInputChan:  fftInputChan,
-		fftWindowChan: fftOutputChan,
+		fftInputChan:        fftInputChan,
+		fftWindowChan:       fftOutputChan,
+		FFTUpdateSignalChan: make(chan struct{}, bufferSizes),
 	}
 }
 
 func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 	copiedFromLastRead := copy(samples, f.fftWindowBuffer[f.fftWindowBufferStart:])
+	checkFFTSyncSignal(f, copiedFromLastRead)
+
 	if copiedFromLastRead == len(samples) {
 		f.fftWindowBufferStart += copiedFromLastRead
 		return copiedFromLastRead, true
@@ -54,6 +64,7 @@ func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 	_, ok := f.s.Stream(f.fftWindowBuffer)
 	copiedThisRead := copy(samples[copiedFromLastRead:], f.fftWindowBuffer)
 	f.fftWindowBufferStart = copiedThisRead
+	checkFFTSyncSignal(f, copiedThisRead)
 
 	fftCopy := make([][2]float64, len(f.fftWindowBuffer))
 	copy(fftCopy, f.fftWindowBuffer)
@@ -61,9 +72,18 @@ func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 
 	if !ok {
 		close(f.fftInputChan)
+		close(f.FFTUpdateSignalChan)
 	}
 
 	return copiedFromLastRead + copiedThisRead, ok
+}
+
+func checkFFTSyncSignal(f *FFTStreamerImpl, bytesCopied int) {
+	f.bytesSinceLastWindow += uint32(bytesCopied)
+	if f.bytesSinceLastWindow >= f.fftWindowSize {
+		f.FFTUpdateSignalChan <- struct{}{}
+		f.bytesSinceLastWindow -= f.fftWindowSize
+	}
 }
 
 func (f *FFTStreamerImpl) Err() error {
@@ -74,13 +94,15 @@ func (f *FFTStreamerImpl) FFTChan() <-chan FFTWindow {
 	return f.fftWindowChan
 }
 
+func (f *FFTStreamerImpl) FFTUpdateSignal() <-chan struct{} {
+	return f.FFTUpdateSignalChan
+}
+
 type FFTWindow struct {
 	Data []complex128
 }
 
 func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWindowSize int) {
-	// TODO apply windowing to get rid of harmonics from discontinuities at the end of chunks (eg make each chunk appear more periodic).
-	// https://download.ni.com/evaluation/pxi/Understanding%20FFTs%20and%20Windowing.pdf
 	for inChunk := range fftInputChan {
 		for _, in := range splitSlices(inChunk, fftWindowSize) {
 			timeDomain := toMono(in)
