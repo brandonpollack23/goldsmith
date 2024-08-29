@@ -1,6 +1,6 @@
 module github.com/brandonpollack23/goldsmith/cmd/goldsmith
 
-go 1.23.0
+go 1.23
 
 replace github.com/brandonpollack23/goldsmith/pkg => ../../pkg
 
