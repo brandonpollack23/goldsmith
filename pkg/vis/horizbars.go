@@ -13,6 +13,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+type HorizontalBarsVisualizer struct {
+	Program *tea.Program
+}
+
+func (v HorizontalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
+	v.Program.Send(newFFTData)
+}
+
 type HorizontalBarsModel struct {
 	fftData      []complex128
 	numBars      int
@@ -93,7 +101,6 @@ func (m HorizontalBarsModel) View() string {
 		aggregateBars[i] /= maxComponent
 	}
 
-	// TODO remove all the bars, can just use one?
 	var sb strings.Builder
 	for _, barValue := range aggregateBars {
 		fmt.Fprintf(&sb, "%s\n", m.bar.ViewAs(barValue))

@@ -22,7 +22,10 @@ import (
 // TODO other visualizers and flag to choose
 // TODO add CTRL for play/pause
 
-var targetFPS uint32
+var (
+	targetFPS uint32
+	visType   string
+)
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -38,6 +41,13 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 
 	rootCmd.PersistentFlags().Uint32VarP(&targetFPS, "target_fps", "f", 60,
 		"The updates FPS for the visualizer, affects FFT window")
+	rootCmd.PersistentFlags().StringVarP(&visType, "visualizer", "v", "vertical_bars",
+		"Which visualizer type to use")
+	rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
+		toComplete string,
+	) ([]string, cobra.ShellCompDirective) {
+		return []string{"horizontal_bars", "vertical_bars"}, cobra.ShellCompDirectiveNoFileComp
+	})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -72,7 +82,17 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 
 	speaker.Play(&fftStreamer)
-	visualizer := vis.NewHorizontalBarsVisualizer(64, int(math.Pow(2, float64(8*format.Precision))))
+	var visualizer vis.Visualizer
+	switch visType {
+	case "horizontal_bars":
+		visualizer = vis.NewHorizontalBarsVisualizer(64,
+			int(math.Pow(2, float64(8*format.Precision))))
+	case "vertical_bars":
+		visualizer = vis.NewVerticalBarsVisualizer(64,
+			int(math.Pow(2, float64(8*format.Precision))))
+	default:
+		panic("unknown visualizer type: " + visType)
+	}
 
 	err = loop(&fftStreamer, windowDuration, visualizer)
 	return err

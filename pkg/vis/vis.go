@@ -12,22 +12,12 @@ import (
 
 // Shared visualizer information.
 
-var (
-	defaultKeymap = Keymap{
-		quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
-	}
-)
+var defaultKeymap = Keymap{
+	quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+}
 
 type Visualizer interface {
 	UpdateVisualizer(newFFTData NewFFTData)
-}
-
-type HorizontalBarsVisualizer struct {
-	Program *tea.Program
-}
-
-func (v HorizontalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
-	v.Program.Send(newFFTData)
 }
 
 type GoldsmithModel interface {
