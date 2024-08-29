@@ -54,38 +54,27 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	}
 	defer audioFile.Close()
 
-	extension := filepath.Ext(audioFile.Name())
-
-	var streamer beep.StreamSeekCloser
-	var format beep.Format
-	switch extension {
-	case ".mp3":
-		streamer, format, err = mp3.Decode(audioFile)
-	case ".wav":
-		streamer, format, err = wav.Decode(audioFile)
-		// TODO other formats (flac, vorbis, midi, etc)
-	default:
-		return fmt.Errorf("unsupported audio file format: %v", extension)
-	}
+	streamer, format, err := decodeAudioFile(audioFile)
 	if err != nil {
 		return fmt.Errorf("error decoding file %s: %w", audioFile.Name(), err)
 	}
 	defer streamer.Close()
 
-	speakerOutputBufferSize := format.SampleRate.N(time.Second / 10)
-	err = speaker.Init(format.SampleRate, speakerOutputBufferSize)
+	// Initialize the speaker to use the sample rate of the audio file selected.
+	// I can also use beep.Resample around the streamer to always use a specific
+	// output sample rate for everything no matter the input.
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	if err != nil {
 		return fmt.Errorf("cannot initializer speaker: %w", err)
 	}
 
-	// I can also use beep.Resample around the streamer to always use a specific
-	// output sample rate for everything no matter the input.
 	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
 	fftWindowSize := format.SampleRate.N(windowDuration)
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
-	speaker.Play(&fftStreamer)
 
+	speaker.Play(&fftStreamer)
 	visualizer := vis.NewHorizontalBarsVisualizer(64)
+
 	err = loop(&fftStreamer, windowDuration, visualizer)
 	return err
 }
@@ -100,6 +89,25 @@ func loop(s fft.FFTStreamer, windowDuration time.Duration, visualizer vis.Visual
 	}
 
 	return nil
+}
+
+func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, error) {
+	var streamer beep.StreamSeekCloser
+	var format beep.Format
+	var err error
+
+	extension := filepath.Ext(audioFile.Name())
+	switch extension {
+	case ".mp3":
+		streamer, format, err = mp3.Decode(audioFile)
+	case ".wav":
+		streamer, format, err = wav.Decode(audioFile)
+		// TODO other formats (flac, vorbis, midi, etc)
+	default:
+		return nil, beep.Format{}, fmt.Errorf("unsupported audio file format: %v", extension)
+	}
+
+	return streamer, format, err
 }
 
 func printTimestamp(streamer beep.StreamSeeker, format beep.Format) {

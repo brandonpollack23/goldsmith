@@ -9,12 +9,13 @@ const (
 	bufferSizes = 5
 )
 
+// FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
 type FFTStreamer interface {
 	beep.Streamer
 	FFTChan() <-chan FFTWindow
 }
 
-type fftstreamer struct {
+type FFTStreamerImpl struct {
 	s                    beep.Streamer
 	fftWindowSize        uint32
 	fftWindowBuffer      [][2]float64
@@ -24,14 +25,14 @@ type fftstreamer struct {
 	fftWindowChan <-chan FFTWindow
 }
 
-func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Format) fftstreamer {
+func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Format) FFTStreamerImpl {
 	internalBufferSize := fftWindowSize * bufferSizes
 
 	fftInputChan := make(chan [][2]float64, bufferSizes)
 	fftOutputChan := make(chan FFTWindow, bufferSizes)
 	go doFFTs(fftInputChan, fftOutputChan, fftWindowSize)
 
-	return fftstreamer{
+	return FFTStreamerImpl{
 		s:                    streamer,
 		fftWindowSize:        uint32(fftWindowSize),
 		fftWindowBuffer:      make([][2]float64, internalBufferSize),
@@ -42,7 +43,7 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Forma
 	}
 }
 
-func (f *fftstreamer) Stream(samples [][2]float64) (int, bool) {
+func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 	copiedFromLastRead := copy(samples, f.fftWindowBuffer[f.fftWindowBufferStart:])
 	if copiedFromLastRead == len(samples) {
 		f.fftWindowBufferStart += copiedFromLastRead
@@ -64,11 +65,11 @@ func (f *fftstreamer) Stream(samples [][2]float64) (int, bool) {
 	return copiedFromLastRead + copiedThisRead, ok
 }
 
-func (f *fftstreamer) Err() error {
+func (f *FFTStreamerImpl) Err() error {
 	return nil
 }
 
-func (f *fftstreamer) FFTChan() <-chan FFTWindow {
+func (f *FFTStreamerImpl) FFTChan() <-chan FFTWindow {
 	return f.fftWindowChan
 }
 
