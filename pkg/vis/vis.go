@@ -126,28 +126,25 @@ func (m HorizontalBarsModel) View() string {
 
 	// TODO maybe use phase to determine color or width or something?
 	// TODO set the max number of bars equal to fftData window size.
+
 	// First aggregate bars together from fft window to match requested number of bars.
 	// And also convert to logarithmic scale.
-	barsToAggregate := len(m.fftData) / len(m.bars)
+	// Divide by 2 to combine the negative frequency components.
+	barsToAggregate := len(m.fftData) / len(m.bars) / 2
 	for bi := range m.bars {
 		for i := range barsToAggregate {
-			aggregateBars[bi] += cmplx.Abs(m.fftData[bi*barsToAggregate+i])
+			posComponent := cmplx.Abs(m.fftData[bi*barsToAggregate+i])
+			negComponent := cmplx.Abs(m.fftData[len(m.fftData)-1-bi*barsToAggregate-i])
+			aggregateBars[bi] += posComponent + negComponent
 		}
 		aggregateBars[bi] = math.Log1p(aggregateBars[bi])
 		aggregateBars[bi] /= 5
 	}
 
-	// var sb strings.Builder
-	// fmt.Fprintf(&sb, "Num bars: %d, bars aggregated: %d\n", len(m.bars), barsToAggregate)
-	// fmt.Fprintf(&sb, "max %f\n", slices.Max(aggregateBars))
-	// for _, value := range aggregateBars {
-	// 	fmt.Fprintf(&sb, "%.1f ", value)
-	// }
-
 	// TODO remove all the bars, can just use one?
 	var sb strings.Builder
 	for i, barValue := range aggregateBars {
-		fmt.Fprintf(&sb, "%s\n\n", m.bars[i].ViewAs(barValue))
+		fmt.Fprintf(&sb, "%s\n", m.bars[i].ViewAs(barValue))
 	}
 
 	return sb.String()
