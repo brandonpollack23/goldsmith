@@ -2,9 +2,9 @@ package vis
 
 import (
 	"fmt"
-	"math"
 	"math/cmplx"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -12,8 +12,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// TODO separate out bars from shared.
+// TODO set the max number of bars equal to fftData window size.
+// TODO experiment with adding the logarithmic back in.
 // TODO make vertical bars
+// TODO maybe use phase to determine color or width or something?
 
 // Shared visualizer information.
 
@@ -124,9 +126,6 @@ func (m HorizontalBarsModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m HorizontalBarsModel) View() string {
 	aggregateBars := make([]float64, len(m.bars))
 
-	// TODO maybe use phase to determine color or width or something?
-	// TODO set the max number of bars equal to fftData window size.
-
 	// First aggregate bars together from fft window to match requested number of bars.
 	// And also convert to logarithmic scale.
 	// Divide by 2 to combine the negative frequency components.
@@ -137,8 +136,11 @@ func (m HorizontalBarsModel) View() string {
 			negComponent := cmplx.Abs(m.fftData[len(m.fftData)-1-bi*barsToAggregate-i])
 			aggregateBars[bi] += posComponent + negComponent
 		}
-		aggregateBars[bi] = math.Log1p(aggregateBars[bi])
-		aggregateBars[bi] /= 5
+		// aggregateBars[bi] = math.Log1p(aggregateBars[bi])
+	}
+	maxComponent := slices.Max(aggregateBars)
+	for i := range m.bars {
+		aggregateBars[i] /= maxComponent
 	}
 
 	// TODO remove all the bars, can just use one?
@@ -146,6 +148,7 @@ func (m HorizontalBarsModel) View() string {
 	for i, barValue := range aggregateBars {
 		fmt.Fprintf(&sb, "%s\n", m.bars[i].ViewAs(barValue))
 	}
+	fmt.Fprintf(&sb, "Max Freq: %.1f", slices.Max(aggregateBars))
 
 	return sb.String()
 }
