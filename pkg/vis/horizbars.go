@@ -15,19 +15,18 @@ import (
 
 type HorizontalBarsModel struct {
 	fftData      []complex128
-	bars         []progress.Model
+	numBars      int
+	bar          progress.Model
 	maxBarHeight int
 	keymap       Keymap
 }
 
 func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
-	bars := make([]progress.Model, numBars)
-	for i := range bars {
-		bars[i] = progress.New(progress.WithDefaultGradient())
-	}
+	bar := progress.New(progress.WithDefaultGradient())
 
 	m := HorizontalBarsModel{
-		bars:         bars,
+		bar:          bar,
+		numBars:      numBars,
 		keymap:       defaultKeymap,
 		maxBarHeight: maxBarHeight,
 	}
@@ -75,13 +74,13 @@ func (m HorizontalBarsModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m HorizontalBarsModel) View() string {
-	aggregateBars := make([]float64, len(m.bars))
+	aggregateBars := make([]float64, m.numBars)
 
 	// First aggregate bars together from fft window to match requested number of bars.
 	// And also convert to logarithmic scale.
 	// Divide by 2 to combine the negative frequency components.
-	barsToAggregate := len(m.fftData) / len(m.bars) / 2
-	for bi := range m.bars {
+	barsToAggregate := len(m.fftData) / m.numBars / 2
+	for bi := range m.numBars {
 		for i := range barsToAggregate {
 			posComponent := cmplx.Abs(m.fftData[bi*barsToAggregate+i])
 			negComponent := cmplx.Abs(m.fftData[len(m.fftData)-1-bi*barsToAggregate-i])
@@ -90,14 +89,14 @@ func (m HorizontalBarsModel) View() string {
 		aggregateBars[bi] = math.Log1p(aggregateBars[bi])
 	}
 	maxComponent := slices.Max(aggregateBars)
-	for i := range m.bars {
+	for i := range m.numBars {
 		aggregateBars[i] /= maxComponent
 	}
 
 	// TODO remove all the bars, can just use one?
 	var sb strings.Builder
-	for i, barValue := range aggregateBars {
-		fmt.Fprintf(&sb, "%s\n", m.bars[i].ViewAs(barValue))
+	for _, barValue := range aggregateBars {
+		fmt.Fprintf(&sb, "%s\n", m.bar.ViewAs(barValue))
 	}
 
 	return sb.String()
