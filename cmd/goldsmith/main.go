@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/brandonpollack23/goldsmith/fft"
-	"github.com/brandonpollack23/goldsmith/vis"
+	"github.com/brandonpollack23/goldsmith/pkg/fft"
+	"github.com/brandonpollack23/goldsmith/pkg/vis"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
