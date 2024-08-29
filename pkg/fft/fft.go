@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	bufferSizes = 5
+	bufferSizes = 10
 )
 
 // FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].

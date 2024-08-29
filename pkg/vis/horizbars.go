@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
@@ -22,6 +23,7 @@ func (v HorizontalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
 }
 
 type HorizontalBarsModel struct {
+	GoldsmithSharedFields
 	fftData      []complex128
 	numBars      int
 	bar          progress.Model
@@ -61,6 +63,8 @@ func (m HorizontalBarsModel) Init() tea.Cmd {
 }
 
 func (m HorizontalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.setLastFrameTime(time.Now())
+
 	switch msg := msg.(type) {
 	case NewFFTData:
 		m.fftData = msg.Data
@@ -104,6 +108,10 @@ func (m HorizontalBarsModel) View() string {
 	var sb strings.Builder
 	for _, barValue := range aggregateBars {
 		fmt.Fprintf(&sb, "%s\n", m.bar.ViewAs(barValue))
+	}
+
+	if m.ShowFPS {
+		displayFPS(&sb, &m)
 	}
 
 	return sb.String()

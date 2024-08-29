@@ -25,6 +25,7 @@ import (
 var (
 	targetFPS uint32
 	visType   string
+	showFPS   bool
 )
 
 func main() {
@@ -43,6 +44,8 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 		"The updates FPS for the visualizer, affects FFT window")
 	rootCmd.PersistentFlags().StringVarP(&visType, "visualizer", "v", "vertical_bars",
 		"Which visualizer type to use")
+	rootCmd.PersistentFlags().BoolVarP(&showFPS, "showfps", "s", false,
+		"Show FPS below visualizer")
 	rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
@@ -85,10 +88,10 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	var visualizer vis.Visualizer
 	switch visType {
 	case "horizontal_bars":
-		visualizer = vis.NewHorizontalBarsVisualizer(64,
-			int(math.Pow(2, float64(8*format.Precision))))
+		visualizer = vis.NewHorizontalBarsVisualizer(32,
+			int(math.Pow(2, float64(8*format.Precision))), vis.WithFPS(showFPS))
 	case "vertical_bars":
-		visualizer = vis.NewVerticalBarsVisualizer(64, 40)
+		visualizer = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
 	default:
 		panic("unknown visualizer type: " + visType)
 	}

@@ -22,6 +22,7 @@ func (v VerticalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
 }
 
 type VerticalBarsModel struct {
+	GoldsmithSharedFields
 	fftData []complex128
 	numBars int
 	// Actual max bar height (as in character height)
@@ -145,6 +146,10 @@ func (m VerticalBarsModel) verticalBarsView(aggregateBarPercents []float64) stri
 			b.WriteString(padding)
 		}
 		b.WriteRune('\n')
+	}
+
+	if m.ShowFPS {
+		displayFPS(&b, &m)
 	}
 
 	return b.String()
