@@ -2,6 +2,7 @@ package vis
 
 import (
 	"fmt"
+	"math"
 	"math/cmplx"
 	"os"
 	"slices"
@@ -12,8 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// TODO separate out shared and horiz bars.
 // TODO set the max number of bars equal to fftData window size.
-// TODO experiment with adding the logarithmic back in.
 // TODO make vertical bars
 // TODO maybe use phase to determine color or width or something?
 
@@ -136,7 +137,7 @@ func (m HorizontalBarsModel) View() string {
 			negComponent := cmplx.Abs(m.fftData[len(m.fftData)-1-bi*barsToAggregate-i])
 			aggregateBars[bi] += posComponent + negComponent
 		}
-		// aggregateBars[bi] = math.Log1p(aggregateBars[bi])
+		aggregateBars[bi] = math.Log1p(aggregateBars[bi])
 	}
 	maxComponent := slices.Max(aggregateBars)
 	for i := range m.bars {
@@ -148,7 +149,6 @@ func (m HorizontalBarsModel) View() string {
 	for i, barValue := range aggregateBars {
 		fmt.Fprintf(&sb, "%s\n", m.bars[i].ViewAs(barValue))
 	}
-	fmt.Fprintf(&sb, "Max Freq: %.1f", slices.Max(aggregateBars))
 
 	return sb.String()
 }

@@ -3,6 +3,7 @@ package fft
 import (
 	"github.com/gopxl/beep"
 	"github.com/mjibson/go-dsp/fft"
+	"github.com/mjibson/go-dsp/window"
 )
 
 const (
@@ -83,6 +84,7 @@ func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWin
 	for inChunk := range fftInputChan {
 		for _, in := range splitSlices(inChunk, fftWindowSize) {
 			timeDomain := toMono(in)
+			window.Apply(timeDomain, window.Hann)
 			freqDomain := fft.FFTReal(timeDomain)
 
 			fftOutputChan <- FFTWindow{

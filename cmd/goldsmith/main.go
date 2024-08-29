@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// TODO get some of buffer and perform FFT in buckets, aim for 60 fps and pick the time to make each FFT based on that.
-// TODO In a goroutine watching the current display time (and waiting or doing a callback based on it) and the FFT channel display buckets using bars with bubbles
 // TODO display playback bar at the bottom with timestamp and max time etc.
 // TODO Volume with beep
 // TODO other beep effects?
