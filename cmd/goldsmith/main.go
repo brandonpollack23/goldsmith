@@ -88,8 +88,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		visualizer = vis.NewHorizontalBarsVisualizer(64,
 			int(math.Pow(2, float64(8*format.Precision))))
 	case "vertical_bars":
-		visualizer = vis.NewVerticalBarsVisualizer(64,
-			int(math.Pow(2, float64(8*format.Precision))))
+		visualizer = vis.NewVerticalBarsVisualizer(64, 40)
 	default:
 		panic("unknown visualizer type: " + visType)
 	}

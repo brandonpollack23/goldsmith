@@ -22,29 +22,33 @@ func (v VerticalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
 }
 
 type VerticalBarsModel struct {
-	fftData      []complex128
-	numBars      int
+	fftData []complex128
+	numBars int
+	// Actual max bar height (as in character height)
 	maxBarHeight int
-	barWidth     int
+	BarWidth     int
 	keymap       Keymap
 
+	TopDown bool
+
 	// TODO color ramp
-	empty      rune
-	full       rune
-	fullColor  string
-	emptyColor string
+	Empty      rune
+	Full       rune
+	FullColor  string
+	EmptyColor string
 }
 
-func NewVerticalBarsVisualizer(numBars int, maxBarWidth int, opts ...VisualizerOption) *VerticalBarsVisualizer {
+func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *VerticalBarsVisualizer {
 	m := VerticalBarsModel{
 		numBars:      numBars,
 		keymap:       defaultKeymap,
-		maxBarHeight: maxBarWidth,
-		barWidth:     2,
-		full:         '█',
-		empty:        '░',
-		fullColor:    "#7571F9",
-		emptyColor:   "#606060",
+		TopDown:      false,
+		maxBarHeight: maxBarHeight,
+		BarWidth:     2,
+		Full:         '█',
+		Empty:        '░',
+		FullColor:    "#7571F9",
+		EmptyColor:   "#606060",
 	}
 
 	for _, opt := range opts {
@@ -120,20 +124,27 @@ func (m VerticalBarsModel) verticalBarsView(aggregateBarPercents []float64) stri
 	padding := " "
 	var b strings.Builder
 
-	for row := range m.maxBarHeight {
+	for i := range m.maxBarHeight {
+		row := i
+		if !m.TopDown {
+			row = m.maxBarHeight - i - 1
+		}
+
 		for _, p := range aggregateBarPercents {
-			if row > int(p*float64(m.maxBarHeight)) {
+			barHeight := int(p * float64(m.maxBarHeight))
+			if row < barHeight {
 				// Solid fill
-				s := termenv.String(string(m.full)).Foreground(m.color(m.fullColor)).String()
-				b.WriteString(strings.Repeat(s, m.barWidth))
+				s := termenv.String(string(m.Full)).Foreground(m.color(m.FullColor)).String()
+				b.WriteString(strings.Repeat(s, m.BarWidth))
 			} else {
 				// Empty fill
-				e := termenv.String(string(m.empty)).Foreground(m.color(m.emptyColor)).String()
-				b.WriteString(strings.Repeat(e, m.barWidth))
+				e := termenv.String(string(m.Empty)).Foreground(m.color(m.EmptyColor)).String()
+				b.WriteString(strings.Repeat(e, m.BarWidth))
 			}
 
 			b.WriteString(padding)
 		}
+		b.WriteRune('\n')
 	}
 
 	return b.String()
