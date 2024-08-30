@@ -38,7 +38,7 @@ type VerticalBarsModel struct {
 	EmptyColor string
 }
 
-func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *VerticalBarsVisualizer {
+func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- struct{}, opts ...VisualizerOption) *VerticalBarsVisualizer {
 	m := VerticalBarsModel{
 		numBars:      numBars,
 		keymap:       defaultKeymap,
@@ -59,6 +59,10 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualizer
 	go func() {
 		if _, err := p.Run(); err != nil {
 			panic("Error occurred: " + err.Error())
+		}
+
+		if waitChan != nil {
+			waitChan <- struct{}{}
 		}
 	}()
 

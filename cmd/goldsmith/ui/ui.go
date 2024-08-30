@@ -15,9 +15,14 @@ type FFTStreamer interface {
 	FFTChan() <-chan fft.FFTWindow
 }
 
-func UIUpdateLoop(s FFTStreamer, visualizer vis.Visualizer) {
-	for range s.FFTUpdateSignal() {
-		fftWindow := <-s.FFTChan()
-		visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
+func UIUpdateLoop(s FFTStreamer, visualizer vis.Visualizer, waitChan <-chan struct{}) {
+	for {
+		select {
+		case <-s.FFTUpdateSignal():
+			fftWindow := <-s.FFTChan()
+			visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
+		case <-waitChan:
+			return
+		}
 	}
 }

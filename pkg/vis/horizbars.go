@@ -30,7 +30,7 @@ type HorizontalBarsModel struct {
 	keymap       Keymap
 }
 
-func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
+func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- struct{}, opts ...VisualizerOption) *HorizontalBarsVisualizer {
 	bar := progress.New(progress.WithDefaultGradient())
 
 	m := HorizontalBarsModel{
@@ -48,6 +48,10 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualiz
 	go func() {
 		if _, err := p.Run(); err != nil {
 			panic("Error occurred: %s" + err.Error())
+		}
+
+		if waitChan != nil {
+			waitChan <- struct{}{}
 		}
 	}()
 

@@ -110,18 +110,19 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 
 	speaker.Play(&fftStreamer)
+	waitChan := make(chan struct{})
 	var visualizer vis.Visualizer
 	switch visType {
 	case "horizontal_bars":
 		visualizer = vis.NewHorizontalBarsVisualizer(32,
-			int(math.Pow(2, float64(8*format.Precision))), vis.WithFPS(showFPS))
+			int(math.Pow(2, float64(8*format.Precision))), waitChan, vis.WithFPS(showFPS))
 	case "vertical_bars":
-		visualizer = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
+		visualizer = vis.NewVerticalBarsVisualizer(64, 40, waitChan, vis.WithFPS(showFPS))
 	default:
 		panic("unknown visualizer type: " + visType)
 	}
 
-	ui.UIUpdateLoop(&fftStreamer, visualizer)
+	ui.UIUpdateLoop(&fftStreamer, visualizer, waitChan)
 
 	return nil
 }
