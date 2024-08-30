@@ -40,20 +40,7 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- 
 		maxBarHeight: maxBarHeight,
 	}
 
-	for _, opt := range opts {
-		opt(&m)
-	}
-
-	p := tea.NewProgram(m, tea.WithoutSignalHandler())
-	go func() {
-		if _, err := p.Run(); err != nil {
-			panic("Error occurred: %s" + err.Error())
-		}
-
-		if waitChan != nil {
-			waitChan <- struct{}{}
-		}
-	}()
+	p := launchTeaProgram(&m, waitChan, opts)
 
 	return &HorizontalBarsVisualizer{Program: p}
 }

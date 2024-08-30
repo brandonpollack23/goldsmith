@@ -51,20 +51,7 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- st
 		EmptyColor:   "#606060",
 	}
 
-	for _, opt := range opts {
-		opt(&m)
-	}
-
-	p := tea.NewProgram(m, tea.WithoutSignalHandler())
-	go func() {
-		if _, err := p.Run(); err != nil {
-			panic("Error occurred: " + err.Error())
-		}
-
-		if waitChan != nil {
-			waitChan <- struct{}{}
-		}
-	}()
+	p := launchTeaProgram(&m, waitChan, opts)
 
 	return &VerticalBarsVisualizer{Program: p}
 }

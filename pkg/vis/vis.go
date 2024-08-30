@@ -84,3 +84,21 @@ func WithFPS(f bool) VisualizerOption {
 		v.SetShowFPS(f)
 	}
 }
+
+func launchTeaProgram(m GoldsmithModel, waitChan chan<- struct{}, opts []VisualizerOption) *tea.Program {
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	p := tea.NewProgram(m, tea.WithoutSignalHandler())
+	go func() {
+		if _, err := p.Run(); err != nil {
+			panic("Error occurred: %s" + err.Error())
+		}
+
+		if waitChan != nil {
+			waitChan <- struct{}{}
+		}
+	}()
+	return p
+}
