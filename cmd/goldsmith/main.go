@@ -5,6 +5,9 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
 	"time"
 
 	"github.com/brandonpollack23/goldsmith/cmd/goldsmith/ui"
@@ -14,6 +17,7 @@ import (
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
 	"github.com/gopxl/beep/wav"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -24,9 +28,11 @@ import (
 // TODO add CTRL for play/pause
 
 var (
-	targetFPS uint32
-	visType   string
-	showFPS   bool
+	targetFPS   uint32
+	visType     string
+	showFPS     bool
+	cpu_profile string
+	mem_profile string
 )
 
 func main() {
@@ -52,15 +58,33 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 	) ([]string, cobra.ShellCompDirective) {
 		return []string{"horizontal_bars", "vertical_bars"}, cobra.ShellCompDirectiveNoFileComp
 	})
+	rootCmd.PersistentFlags().StringVarP(&cpu_profile, "cpu_profile", "p", "",
+		"Emit CPU and memory profiles and an execution trace to '[filename].[pid].{cpu,trace}', respectively")
+	rootCmd.PersistentFlags().StringVarP(&mem_profile, "mem_profile", "m", "",
+		"Emit CPU and memory profiles and an execution trace to '[filename].[pid].mem', respectively")
 
 	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Fatal error: %v", err)
-		os.Exit(1)
+		panic("Fatal error: " + err.Error())
 	}
 }
 
 func runVisualizer(cmd *cobra.Command, args []string) error {
+	if cpu_profile != "" {
+		var (
+			stop func()
+			err  error
+		)
+		if stop, err = initCpuProfiling(cpu_profile, 0); err != nil {
+			panic(err)
+		}
+		defer stop()
+	}
+
+	if mem_profile != "" {
+		defer saveMemoryProfile(mem_profile)
+	}
+
 	audioFile, err := os.Open(args[0])
 	if err != nil {
 		return fmt.Errorf("error opening file: %w", err)
@@ -126,4 +150,42 @@ func printTimestamp(streamer beep.StreamSeeker, format beep.Format) {
 	defer speaker.Unlock()
 
 	fmt.Printf("%d.2\n", format.SampleRate.D(streamer.Position()).Round(time.Millisecond))
+}
+
+// Initializes profiling and returns a function to defer to stop it.
+func initCpuProfiling(prefix string, memProfileRate int) (func(), error) {
+	cpu, err := os.Create(fmt.Sprintf("%s.%v.cpu", prefix, os.Getpid()))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not start CPU profile")
+	}
+	if err = pprof.StartCPUProfile(cpu); err != nil {
+		return nil, errors.Wrap(err, "could not start CPU profile")
+	}
+
+	exec, err := os.Create(fmt.Sprintf("%s.%v.trace", prefix, os.Getpid()))
+	if err != nil {
+		return nil, errors.Wrap(err, "could not start execution trace")
+	}
+	if err = trace.Start(exec); err != nil {
+		return nil, errors.Wrap(err, "could not start execution trace")
+	}
+
+	if memProfileRate > 0 {
+		runtime.MemProfileRate = memProfileRate
+	}
+
+	return func() {
+		defer pprof.StopCPUProfile()
+		defer trace.Stop()
+	}, nil
+}
+
+func saveMemoryProfile(prefix string) {
+	mem, err := os.Create(fmt.Sprintf("%s.%v.mem", prefix, os.Getpid()))
+	if err != nil {
+		panic(err)
+	}
+	if err := pprof.WriteHeapProfile(mem); err != nil {
+		panic(err)
+	}
 }

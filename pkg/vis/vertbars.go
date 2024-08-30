@@ -1,10 +1,8 @@
 package vis
 
 import (
-	"fmt"
 	"math"
 	"math/cmplx"
-	"os"
 	"slices"
 	"strings"
 	"time"
@@ -60,11 +58,8 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualizer
 	p := tea.NewProgram(m, tea.WithoutSignalHandler())
 	go func() {
 		if _, err := p.Run(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error occurred: %s", err.Error())
-			os.Exit(1)
+			panic("Error occurred: " + err.Error())
 		}
-
-		os.Exit(0)
 	}()
 
 	return &VerticalBarsVisualizer{Program: p}
