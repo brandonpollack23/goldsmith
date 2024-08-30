@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/brandonpollack23/goldsmith/cmd/goldsmith/ui"
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
 	"github.com/gopxl/beep"
@@ -96,16 +97,9 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	uiUpdateLoop(&fftStreamer, visualizer)
+	ui.UIUpdateLoop(&fftStreamer, visualizer)
 
 	return nil
-}
-
-func uiUpdateLoop(s fft.FFTStreamer, visualizer vis.Visualizer) {
-	for range s.FFTUpdateSignal() {
-		fftWindow := <-s.FFTChan()
-		visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
-	}
 }
 
 func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, error) {

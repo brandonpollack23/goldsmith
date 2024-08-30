@@ -10,15 +10,6 @@ const (
 	bufferSizes = 10
 )
 
-// FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
-type FFTStreamer interface {
-	beep.Streamer
-	// Synchronization signal to update FFT to display.
-	FFTUpdateSignal() <-chan struct{}
-	// Channel that contains FFT window data.
-	FFTChan() <-chan FFTWindow
-}
-
 type FFTStreamerImpl struct {
 	s                    beep.Streamer
 	fftWindowSize        uint32
