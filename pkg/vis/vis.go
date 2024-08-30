@@ -85,12 +85,16 @@ func WithFPS(f bool) VisualizerOption {
 	}
 }
 
-func launchTeaProgram(m GoldsmithModel, waitChan chan<- struct{}, opts []VisualizerOption) *tea.Program {
+// Launches the bubble tea visualizer and returns the program handle as well as
+// a done signal channel.
+func launchTeaProgram(m GoldsmithModel, opts []VisualizerOption) (*tea.Program, <-chan struct{}) {
 	for _, opt := range opts {
 		opt(m)
 	}
 
 	p := tea.NewProgram(m, tea.WithoutSignalHandler())
+
+	waitChan := make(chan struct{})
 	go func() {
 		if _, err := p.Run(); err != nil {
 			panic("Error occurred: %s" + err.Error())
@@ -100,5 +104,5 @@ func launchTeaProgram(m GoldsmithModel, waitChan chan<- struct{}, opts []Visuali
 			waitChan <- struct{}{}
 		}
 	}()
-	return p
+	return p, waitChan
 }

@@ -30,7 +30,7 @@ type HorizontalBarsModel struct {
 	keymap       Keymap
 }
 
-func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- struct{}, opts ...VisualizerOption) *HorizontalBarsVisualizer {
+func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) (*HorizontalBarsVisualizer, <-chan struct{}) {
 	bar := progress.New(progress.WithDefaultGradient())
 
 	m := HorizontalBarsModel{
@@ -40,9 +40,9 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- 
 		maxBarHeight: maxBarHeight,
 	}
 
-	p := launchTeaProgram(&m, waitChan, opts)
+	p, doneChan := launchTeaProgram(&m, opts)
 
-	return &HorizontalBarsVisualizer{Program: p}
+	return &HorizontalBarsVisualizer{Program: p}, doneChan
 }
 
 func (m HorizontalBarsModel) Init() tea.Cmd {

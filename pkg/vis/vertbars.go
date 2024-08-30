@@ -38,7 +38,7 @@ type VerticalBarsModel struct {
 	EmptyColor string
 }
 
-func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- struct{}, opts ...VisualizerOption) *VerticalBarsVisualizer {
+func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) (*VerticalBarsVisualizer, <-chan struct{}) {
 	m := VerticalBarsModel{
 		numBars:      numBars,
 		keymap:       defaultKeymap,
@@ -51,9 +51,9 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, waitChan chan<- st
 		EmptyColor:   "#606060",
 	}
 
-	p := launchTeaProgram(&m, waitChan, opts)
+	p, doneChan := launchTeaProgram(&m, opts)
 
-	return &VerticalBarsVisualizer{Program: p}
+	return &VerticalBarsVisualizer{Program: p}, doneChan
 }
 
 func (m VerticalBarsModel) Init() tea.Cmd {
