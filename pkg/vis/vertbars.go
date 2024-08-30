@@ -5,7 +5,6 @@ import (
 	"math/cmplx"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -40,15 +39,16 @@ type VerticalBarsModel struct {
 
 func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) (*VerticalBarsVisualizer, <-chan struct{}) {
 	m := VerticalBarsModel{
-		numBars:      numBars,
-		keymap:       defaultKeymap,
-		TopDown:      false,
-		maxBarHeight: maxBarHeight,
-		BarWidth:     2,
-		Full:         '█',
-		Empty:        '░',
-		FullColor:    "#7571F9",
-		EmptyColor:   "#606060",
+		numBars:               numBars,
+		keymap:                defaultKeymap,
+		TopDown:               false,
+		maxBarHeight:          maxBarHeight,
+		BarWidth:              2,
+		Full:                  '█',
+		Empty:                 '░',
+		FullColor:             "#7571F9",
+		EmptyColor:            "#606060",
+		GoldsmithSharedFields: initSharedFields(),
 	}
 
 	p, doneChan := launchTeaProgram(&m, opts)
@@ -61,9 +61,9 @@ func (m VerticalBarsModel) Init() tea.Cmd {
 }
 
 func (m VerticalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.lastFrameTime = time.Now()
 	switch msg := msg.(type) {
 	case NewFFTData:
+		m.GoldsmithSharedFields.updateFPS()
 		m.fftData = msg.Data
 		return m, nil
 

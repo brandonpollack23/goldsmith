@@ -6,7 +6,6 @@ import (
 	"math/cmplx"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
@@ -34,10 +33,11 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualiz
 	bar := progress.New(progress.WithDefaultGradient())
 
 	m := HorizontalBarsModel{
-		bar:          bar,
-		numBars:      numBars,
-		keymap:       defaultKeymap,
-		maxBarHeight: maxBarHeight,
+		bar:                   bar,
+		numBars:               numBars,
+		keymap:                defaultKeymap,
+		maxBarHeight:          maxBarHeight,
+		GoldsmithSharedFields: initSharedFields(),
 	}
 
 	p, doneChan := launchTeaProgram(&m, opts)
@@ -50,10 +50,9 @@ func (m HorizontalBarsModel) Init() tea.Cmd {
 }
 
 func (m HorizontalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	m.setLastFrameTime(time.Now())
-
 	switch msg := msg.(type) {
 	case NewFFTData:
+		m.GoldsmithSharedFields.updateFPS()
 		m.fftData = msg.Data
 		return m, nil
 

@@ -24,30 +24,40 @@ type Visualizer interface {
 	UpdateVisualizer(newFFTData NewFFTData)
 }
 
+// TODO clean
 type GoldsmithModel interface {
 	tea.Model
 	SetKeymap(k Keymap)
 	SetShowFPS(f bool)
 
-	getLastFrameTime() time.Time
-	setLastFrameTime(t time.Time)
+	GetCurrentFPS() float64
+	GetAverageFPS() float64
 }
 
 type GoldsmithSharedFields struct {
 	ShowFPS       bool
 	lastFrameTime time.Time
+	currentFPS    float64
+	averageFPS    float64
+	frameCount    int64
+}
+
+func initSharedFields() GoldsmithSharedFields {
+	return GoldsmithSharedFields{
+		lastFrameTime: time.Now(),
+	}
 }
 
 func (m *GoldsmithSharedFields) SetShowFPS(f bool) {
 	m.ShowFPS = f
 }
 
-func (m GoldsmithSharedFields) getLastFrameTime() time.Time {
-	return m.lastFrameTime
+func (m GoldsmithSharedFields) GetAverageFPS() float64 {
+	return m.averageFPS
 }
 
-func (m *GoldsmithSharedFields) setLastFrameTime(t time.Time) {
-	m.lastFrameTime = t
+func (m GoldsmithSharedFields) GetCurrentFPS() float64 {
+	return m.currentFPS
 }
 
 type Keymap struct {
@@ -58,15 +68,24 @@ type NewFFTData struct {
 	Data []complex128
 }
 
-func displayFPS(b io.StringWriter, m GoldsmithModel) {
+func (m *GoldsmithSharedFields) updateFPS() {
 	t := time.Now()
-	frameTime := t.Sub(m.getLastFrameTime()).Seconds()
-	if t != m.getLastFrameTime() {
-		fps := 1.0 / frameTime
-		b.WriteString(fmt.Sprintf("FPS: %.2f", fps))
-	} else {
-		b.WriteString("FPS: inf")
+
+	lastFrameCount := m.frameCount
+	m.frameCount += 1
+	frameTime := t.Sub(m.lastFrameTime).Seconds()
+
+	if frameTime != 0 {
+		m.currentFPS = (1.0 / frameTime)
+		m.averageFPS = ((m.GetAverageFPS() * float64(lastFrameCount)) + m.currentFPS) / float64(m.frameCount)
 	}
+
+	m.lastFrameTime = t
+}
+
+func displayFPS(b io.StringWriter, m GoldsmithModel) {
+	b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.GetCurrentFPS()))
+	b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.GetAverageFPS()))
 }
 
 // Shared Options
