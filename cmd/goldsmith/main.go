@@ -31,8 +31,8 @@ var (
 	targetFPS   uint32
 	visType     string
 	showFPS     bool
-	cpu_profile string
-	mem_profile string
+	cpu_profile string // nit: should be camelCase
+	mem_profile string // nit: should be camelCase
 )
 
 func main() {
@@ -76,6 +76,8 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 			err  error
 		)
 		if stop, err = initCpuProfiling(cpu_profile, 0); err != nil {
+			// I would recommend not panicking/os.Exiting except in the
+			// outermost main function. Just return the error from here.
 			panic(err)
 		}
 		defer stop()

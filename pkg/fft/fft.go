@@ -10,6 +10,12 @@ const (
 	bufferSizes = 10
 )
 
+// There's different schools of thought on this, but I would move the
+// FFTStreamer interface in here, and make FFTStreamerImpl private. Other people
+// think you should keep the interface at the point it's used, but imo that ends
+// up with a bunch of duplicated code for little reason, especially once you
+// start using mock generation tool.
+
 type FFTStreamerImpl struct {
 	s                    beep.Streamer
 	fftWindowSize        uint32
@@ -109,6 +115,7 @@ func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWin
 	close(fftOutputChan)
 }
 
+// I believe this is equivalent to slices.Chunk, not 100% sure though
 func splitSlices[T any](s []T, size int) [][]T {
 	var result [][]T
 	for i := 0; i < len(s); i += size {

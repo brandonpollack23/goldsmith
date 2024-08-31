@@ -1,5 +1,9 @@
 go 1.23
 
+// I've honestly never used workspaces, lol, I don't think it's a commonly used
+// feature. I guess the point would be to separate the dependencies for the
+// library and the binary outputs of the project, which makes sense.
+
 use (
 	./cmd/goldsmith
 	./pkg
