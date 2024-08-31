@@ -22,6 +22,9 @@ var defaultKeymap = Keymap{
 
 type Visualizer interface {
 	UpdateVisualizer(newFFTData NewFFTData)
+	// You might consider sticking a `Wait(context.Context) error` method on
+	// here, and then you wouldn't have to return a wayward channel from the
+	// constructors at all.
 }
 
 // TODO clean
@@ -35,6 +38,10 @@ type GoldsmithModel interface {
 	GetFrameCount() int64
 }
 
+// nit: could this (and the ShowFPS field) be made private to this package? If
+// so I would recommend it, it makes it much easier to understand how some type
+// is going to be used in the context of the rest of the program if you know it
+// can only be used within this domain.
 type GoldsmithSharedFields struct {
 	ShowFPS       bool
 	startTime     time.Time
@@ -43,6 +50,7 @@ type GoldsmithSharedFields struct {
 	frameCount    int64
 }
 
+// nit: idiomatically I'd call this `newSharedFields`
 func initSharedFields() GoldsmithSharedFields {
 	now := time.Now()
 	return GoldsmithSharedFields{
@@ -72,6 +80,8 @@ type Keymap struct {
 }
 
 type NewFFTData struct {
+	// this is the first time I've ever seen one of the complex types used, well
+	// done! :clap:
 	Data []complex128
 }
 
@@ -96,6 +106,11 @@ func displayFPS(b io.StringWriter, m GoldsmithModel) {
 
 // Shared Options
 
+// I guess this is partially personal preference, but I personally don't like
+// these functional options. I'll write a blog post on it one day... but for a
+// lot of reasons they end up being inconvenient in the long run. I would just
+// pass in an `*Opts` struct. Some people really like them though, so idk maybe
+// I'm wrong.
 type VisualizerOption func(GoldsmithModel)
 
 func WithKeymap(k Keymap) VisualizerOption {
@@ -126,6 +141,9 @@ func launchTeaProgram(m GoldsmithModel, opts []VisualizerOption) (*tea.Program, 
 		}
 
 		if waitChan != nil {
+			// Better to close it, so you could theoretically have multiple
+			// things waiting if you wanted. Also the nil check isn't really
+			// necessary, it will definitely not be nil.
 			waitChan <- struct{}{}
 		}
 	}()

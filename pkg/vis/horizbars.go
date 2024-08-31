@@ -13,7 +13,7 @@ import (
 )
 
 type HorizontalBarsVisualizer struct {
-	Program *tea.Program
+	Program *tea.Program // nit: could be private I think
 }
 
 func (v HorizontalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {

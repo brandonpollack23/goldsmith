@@ -1,0 +1,26 @@
+golangci-lint is a good tool to use, and is pretty standardized at this point.
+You'll probably be expected to use it at any go-shop you work at.
+
+Here's the output for running it with default options on goldsmith, I wouldn't
+disagree with any of the issues it points out
+
+---------
+
+pkg/vis/vis.go:92:15: Error return value of `b.WriteString` is not checked (errcheck)
+	b.WriteString(fmt.Sprintf("Frame Count: %d\n", m.GetFrameCount()))
+	             ^
+pkg/vis/vis.go:93:15: Error return value of `b.WriteString` is not checked (errcheck)
+	b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.GetCurrentFPS()))
+	             ^
+pkg/vis/vis.go:94:15: Error return value of `b.WriteString` is not checked (errcheck)
+	b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.GetAverageFPS()))
+	             ^
+pkg/vis/vis.go:59:42: S1012: should use `time.Since` instead of `time.Now().Sub` (gosimple)
+	return float64(m.frameCount) / (float64(time.Now().Sub(m.startTime).Seconds()))
+	                                        ^
+cmd/goldsmith/main.go:56:36: Error return value of `rootCmd.RegisterFlagCompletionFunc` is not checked (errcheck)
+	rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
+	                                  ^
+cmd/goldsmith/main.go:151:6: func `printTimestamp` is unused (unused)
+func printTimestamp(streamer beep.StreamSeeker, format beep.Format) {
+     ^
