@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -28,11 +29,11 @@ import (
 // TODO add CTRL for play/pause
 
 var (
-	targetFPS   uint32
-	visType     string
-	showFPS     bool
-	cpu_profile string
-	mem_profile string
+	targetFPS  uint32
+	visType    string
+	showFPS    bool
+	cpuProfile string
+	memProfile string
 )
 
 func main() {
@@ -53,36 +54,41 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 		"Which visualizer type to use")
 	rootCmd.PersistentFlags().BoolVarP(&showFPS, "showfps", "s", false,
 		"Show FPS below visualizer")
-	rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
+
+	err := rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
 		return []string{"horizontal_bars", "vertical_bars"}, cobra.ShellCompDirectiveNoFileComp
 	})
-	rootCmd.PersistentFlags().StringVarP(&cpu_profile, "cpu_profile", "p", "",
+	if err != nil {
+		panic(err)
+	}
+
+	rootCmd.PersistentFlags().StringVarP(&cpuProfile, "cpu_profile", "p", "",
 		"Emit CPU and memory profiles and an execution trace to '[filename].[pid].{cpu,trace}', respectively")
-	rootCmd.PersistentFlags().StringVarP(&mem_profile, "mem_profile", "m", "",
+	rootCmd.PersistentFlags().StringVarP(&memProfile, "mem_profile", "m", "",
 		"Emit CPU and memory profiles and an execution trace to '[filename].[pid].mem', respectively")
 
-	err := rootCmd.Execute()
+	err = rootCmd.Execute()
 	if err != nil {
 		panic("Fatal error: " + err.Error())
 	}
 }
 
 func runVisualizer(cmd *cobra.Command, args []string) error {
-	if cpu_profile != "" {
+	if cpuProfile != "" {
 		var (
 			stop func()
 			err  error
 		)
-		if stop, err = initCpuProfiling(cpu_profile, 0); err != nil {
-			panic(err)
+		if stop, err = initCpuProfiling(cpuProfile, 0); err != nil {
+			return err
 		}
 		defer stop()
 	}
 
-	if mem_profile != "" {
-		defer saveMemoryProfile(mem_profile)
+	if memProfile != "" {
+		defer saveMemoryProfile(memProfile)
 	}
 
 	audioFile, err := os.Open(args[0])
@@ -97,6 +103,13 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	}
 	defer streamer.Close()
 
+	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
+	fftWindowSize := format.SampleRate.N(windowDuration)
+	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
+
 	// Initialize the speaker to use the sample rate of the audio file selected.
 	// I can also use beep.Resample around the streamer to always use a specific
 	// output sample rate for everything no matter the input.
@@ -105,26 +118,25 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("cannot initializer speaker: %w", err)
 	}
 
-	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
-	fftWindowSize := format.SampleRate.N(windowDuration)
-	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
-
 	speaker.Play(&fftStreamer)
 	var (
 		visualizer vis.Visualizer
-		waitChan   <-chan struct{}
+		exitChan   <-chan struct{}
 	)
 	switch visType {
 	case "horizontal_bars":
-		visualizer, waitChan = vis.NewHorizontalBarsVisualizer(32,
+		visualizer, exitChan = vis.NewHorizontalBarsVisualizer(32,
 			int(math.Pow(2, float64(8*format.Precision))), vis.WithFPS(showFPS))
 	case "vertical_bars":
-		visualizer, waitChan = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
+		visualizer, exitChan = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
 	default:
 		panic("unknown visualizer type: " + visType)
 	}
 
-	ui.UIUpdateLoop(&fftStreamer, visualizer, waitChan)
+	err = ui.UIUpdateLoop(ctx, &fftStreamer, visualizer, exitChan)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -146,13 +158,6 @@ func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, er
 	}
 
 	return streamer, format, err
-}
-
-func printTimestamp(streamer beep.StreamSeeker, format beep.Format) {
-	speaker.Lock()
-	defer speaker.Unlock()
-
-	fmt.Printf("%d.2\n", format.SampleRate.D(streamer.Position()).Round(time.Millisecond))
 }
 
 // Initializes profiling and returns a function to defer to stop it.
@@ -188,7 +193,7 @@ func saveMemoryProfile(prefix string) {
 	if err != nil {
 		panic(err)
 	}
-	if err := pprof.WriteHeapProfile(mem); err != nil {
+	if err = pprof.WriteHeapProfile(mem); err != nil {
 		panic(err)
 	}
 }

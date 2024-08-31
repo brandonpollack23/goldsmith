@@ -1,6 +1,9 @@
 package fft
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/gopxl/beep"
 	"github.com/mjibson/go-dsp/fft"
 	"github.com/mjibson/go-dsp/window"
@@ -20,7 +23,7 @@ type FFTStreamerImpl struct {
 	fftWindowChan <-chan FFTWindow
 
 	// Synchronization signal to update FFT to display.
-	FFTUpdateSignalChan  chan struct{}
+	fftUpdateSignalChan  chan struct{}
 	bytesSinceLastWindow uint32
 }
 
@@ -39,8 +42,21 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Forma
 
 		fftInputChan:        fftInputChan,
 		fftWindowChan:       fftOutputChan,
-		FFTUpdateSignalChan: make(chan struct{}, bufferSizes),
+		fftUpdateSignalChan: make(chan struct{}, bufferSizes),
 	}
+}
+
+func (s *FFTStreamerImpl) NextFFTWindow(ctx context.Context) (FFTWindow, error) {
+	select {
+	case <-s.fftUpdateSignalChan:
+		return <-s.fftWindowChan, nil
+	case <-ctx.Done():
+		return FFTWindow{}, fmt.Errorf("FFT Streamer canceled!")
+	}
+}
+
+func (s FFTStreamerImpl) Err() error {
+	return s.s.Err()
 }
 
 func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
@@ -63,7 +79,7 @@ func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 
 	if !ok {
 		close(f.fftInputChan)
-		close(f.FFTUpdateSignalChan)
+		close(f.fftUpdateSignalChan)
 	}
 
 	return copiedFromLastRead + copiedThisRead, ok
@@ -72,21 +88,9 @@ func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 func checkFFTSyncSignal(f *FFTStreamerImpl, bytesCopied int) {
 	f.bytesSinceLastWindow += uint32(bytesCopied)
 	if f.bytesSinceLastWindow >= f.fftWindowSize {
-		f.FFTUpdateSignalChan <- struct{}{}
+		f.fftUpdateSignalChan <- struct{}{}
 		f.bytesSinceLastWindow -= f.fftWindowSize
 	}
-}
-
-func (f *FFTStreamerImpl) Err() error {
-	return nil
-}
-
-func (f *FFTStreamerImpl) FFTChan() <-chan FFTWindow {
-	return f.fftWindowChan
-}
-
-func (f *FFTStreamerImpl) FFTUpdateSignal() <-chan struct{} {
-	return f.FFTUpdateSignalChan
 }
 
 type FFTWindow struct {

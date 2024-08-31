@@ -1,28 +1,37 @@
 package ui
 
 import (
+	"context"
+	"time"
+
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
-	"github.com/gopxl/beep"
+)
+
+const (
+	FFTDeadlineKey = iota
 )
 
 // FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
 type FFTStreamer interface {
-	beep.Streamer
-	// Synchronization signal to update FFT to display.
-	FFTUpdateSignal() <-chan struct{}
-	// Channel that contains FFT window data.
-	FFTChan() <-chan fft.FFTWindow
+	// Returns the next FFT window when it is time to update the UI.
+	NextFFTWindow(context.Context) (fft.FFTWindow, error)
 }
 
-func UIUpdateLoop(s FFTStreamer, visualizer vis.Visualizer, waitChan <-chan struct{}) {
+func UIUpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer, exitChan <-chan struct{}) error {
 	for {
 		select {
-		case <-s.FFTUpdateSignal():
-			fftWindow := <-s.FFTChan()
-			visualizer.UpdateVisualizer(vis.NewFFTData{Data: fftWindow.Data})
-		case <-waitChan:
-			return
+		case <-exitChan:
+			return nil
+		default:
+			fftCtx, cancel := context.WithDeadline(ctx, time.Now().Add(ctx.Value(FFTDeadlineKey).(time.Duration)))
+			nextFFTWindow, err := s.NextFFTWindow(fftCtx)
+			if err != nil {
+				return err
+			}
+			cancel()
+
+			visualizer.UpdateVisualizer(vis.NewFFTData{Data: nextFFTWindow.Data})
 		}
 	}
 }
