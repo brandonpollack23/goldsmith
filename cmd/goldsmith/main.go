@@ -47,7 +47,7 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 		RunE: runVisualizer,
 	}
 
-	rootCmd.PersistentFlags().Uint32VarP(&targetFPS, "target_fps", "f", 60,
+	rootCmd.PersistentFlags().Uint32VarP(&targetFPS, "target_fps", "f", 30,
 		"The updates FPS for the visualizer, affects FFT window")
 	rootCmd.PersistentFlags().StringVarP(&visType, "visualizer", "v", "vertical_bars",
 		"Which visualizer type to use")
