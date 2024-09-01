@@ -89,6 +89,7 @@ type Keymap struct {
 
 type NewFFTData struct {
 	Data []complex128
+	Done bool
 }
 
 func (m *GoldsmithSharedFields) updateFPS() {

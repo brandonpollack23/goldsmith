@@ -46,12 +46,15 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize uint32, format beep.Fo
 	}
 }
 
-func (f *FFTStreamerImpl) NextFFTWindow(ctx context.Context) (FFTWindow, error) {
+func (f *FFTStreamerImpl) NextFFTWindow(ctx context.Context) (FFTWindow, bool, error) {
 	select {
-	case <-f.fftUpdateSignalChan:
-		return <-f.fftWindowChan, nil
+	case _, ok := <-f.fftUpdateSignalChan:
+		if !ok {
+			return FFTWindow{}, false, nil
+		}
+		return <-f.fftWindowChan, true, nil
 	case <-ctx.Done():
-		return FFTWindow{}, errors.New("fft streamer canceled")
+		return FFTWindow{}, false, errors.New("fft streamer canceled")
 	}
 }
 

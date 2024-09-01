@@ -17,7 +17,7 @@ const (
 // FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
 type FFTStreamer interface {
 	// Returns the next FFT window when it is time to update the UI.
-	NextFFTWindow(context.Context) (fft.FFTWindow, error)
+	NextFFTWindow(context.Context) (fft.FFTWindow, bool, error)
 }
 
 func UIUpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer) error {
@@ -37,13 +37,14 @@ func UIUpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer)
 		default:
 			fftCtx, cancel := context.WithDeadline(ctx,
 				time.Now().Add(ctx.Value(FFTDeadlineKey).(time.Duration)))
-			nextFFTWindow, err := s.NextFFTWindow(fftCtx)
+			nextFFTWindow, ok, err := s.NextFFTWindow(fftCtx)
+			cancel()
+
 			if err != nil {
 				return err
 			}
-			cancel()
 
-			visualizer.UpdateVisualizer(vis.NewFFTData{Data: nextFFTWindow.Data})
+			visualizer.UpdateVisualizer(vis.NewFFTData{Data: nextFFTWindow.Data, Done: !ok})
 		}
 	}
 }

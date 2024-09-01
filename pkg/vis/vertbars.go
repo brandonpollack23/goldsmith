@@ -67,6 +67,10 @@ func (m VerticalBarsModel) Init() tea.Cmd {
 func (m VerticalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case NewFFTData:
+		if msg.Done {
+			return m, tea.Quit
+		}
+
 		m.GoldsmithSharedFields.updateFPS()
 		m.fftData = msg.Data
 		return m, nil

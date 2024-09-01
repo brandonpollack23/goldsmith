@@ -55,7 +55,7 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 	rootCmd.PersistentFlags().BoolVarP(&showFPS, "showfps", "s", false,
 		"Show FPS below visualizer")
 
-	err := rootCmd.RegisterFlagCompletionFunc("vertical_bars", func(cmd *cobra.Command, args []string,
+	err := rootCmd.RegisterFlagCompletionFunc("visualizer", func(cmd *cobra.Command, args []string,
 		toComplete string,
 	) ([]string, cobra.ShellCompDirective) {
 		return []string{"horizontal_bars", "vertical_bars"}, cobra.ShellCompDirectiveNoFileComp
@@ -110,7 +110,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
-	ctx, cancel := context.WithTimeout(ctx, songDuration+2*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
 	defer cancel()
 
 	// Initialize the speaker to use the sample rate of the audio file selected.
