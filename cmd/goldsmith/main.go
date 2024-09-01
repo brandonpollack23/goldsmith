@@ -106,9 +106,12 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
 	fftWindowSize := uint32(format.SampleRate.N(windowDuration))
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
+	songDuration := format.SampleRate.D(streamer.Len())
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
+	ctx, cancel := context.WithTimeout(ctx, songDuration+2*time.Second)
+	defer cancel()
 
 	// Initialize the speaker to use the sample rate of the audio file selected.
 	// I can also use beep.Resample around the streamer to always use a specific
@@ -119,10 +122,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	}
 
 	speaker.Play(&fftStreamer)
-	var (
-		visualizer vis.Visualizer
-		exitChan   <-chan struct{}
-	)
+	var visualizer vis.Visualizer
 	switch visType {
 	case "horizontal_bars":
 		visualizer = vis.NewHorizontalBarsVisualizer(32,
@@ -133,7 +133,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	err = ui.UIUpdateLoop(ctx, &fftStreamer, visualizer, exitChan)
+	err = ui.UIUpdateLoop(ctx, &fftStreamer, visualizer)
 	if err != nil {
 		return err
 	}

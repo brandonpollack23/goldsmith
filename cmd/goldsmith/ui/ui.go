@@ -2,6 +2,8 @@ package ui
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
@@ -18,13 +20,23 @@ type FFTStreamer interface {
 	NextFFTWindow(context.Context) (fft.FFTWindow, error)
 }
 
-func UIUpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer, exitChan <-chan struct{}) error {
+func UIUpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer) error {
+	exitChan := make(chan struct{})
+	go func() {
+		err := visualizer.Wait(ctx)
+		if err != nil {
+			log.Println(fmt.Errorf("visualizer somehow running longer than audio file: %w", err).Error())
+		}
+		exitChan <- struct{}{}
+	}()
+
 	for {
 		select {
 		case <-exitChan:
 			return nil
 		default:
-			fftCtx, cancel := context.WithDeadline(ctx, time.Now().Add(ctx.Value(FFTDeadlineKey).(time.Duration)))
+			fftCtx, cancel := context.WithDeadline(ctx,
+				time.Now().Add(ctx.Value(FFTDeadlineKey).(time.Duration)))
 			nextFFTWindow, err := s.NextFFTWindow(fftCtx)
 			if err != nil {
 				return err
