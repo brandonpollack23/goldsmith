@@ -12,11 +12,12 @@ import (
 )
 
 type VerticalBarsVisualizer struct {
-	Program *tea.Program
+	VisualizerShared
+	program *tea.Program
 }
 
 func (v VerticalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
-	v.Program.Send(newFFTData)
+	v.program.Send(newFFTData)
 }
 
 type VerticalBarsModel struct {
@@ -37,7 +38,7 @@ type VerticalBarsModel struct {
 	EmptyColor string
 }
 
-func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) (*VerticalBarsVisualizer, <-chan struct{}) {
+func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *VerticalBarsVisualizer {
 	m := VerticalBarsModel{
 		numBars:               numBars,
 		keymap:                defaultKeymap,
@@ -53,7 +54,10 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualizer
 
 	p, doneChan := launchTeaProgram(&m, opts)
 
-	return &VerticalBarsVisualizer{Program: p}, doneChan
+	return &VerticalBarsVisualizer{
+		program:          p,
+		VisualizerShared: VisualizerShared{done: doneChan},
+	}
 }
 
 func (m VerticalBarsModel) Init() tea.Cmd {

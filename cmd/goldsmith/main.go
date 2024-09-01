@@ -81,7 +81,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 			stop func()
 			err  error
 		)
-		if stop, err = initCpuProfiling(cpuProfile, 0); err != nil {
+		if stop, err = initCPUProfiling(cpuProfile, 0); err != nil {
 			return err
 		}
 		defer stop()
@@ -104,7 +104,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	defer streamer.Close()
 
 	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
-	fftWindowSize := format.SampleRate.N(windowDuration)
+	fftWindowSize := uint32(format.SampleRate.N(windowDuration))
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 
 	ctx := context.Background()
@@ -125,10 +125,10 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	)
 	switch visType {
 	case "horizontal_bars":
-		visualizer, exitChan = vis.NewHorizontalBarsVisualizer(32,
+		visualizer = vis.NewHorizontalBarsVisualizer(32,
 			int(math.Pow(2, float64(8*format.Precision))), vis.WithFPS(showFPS))
 	case "vertical_bars":
-		visualizer, exitChan = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
+		visualizer = vis.NewVerticalBarsVisualizer(64, 40, vis.WithFPS(showFPS))
 	default:
 		panic("unknown visualizer type: " + visType)
 	}
@@ -161,7 +161,7 @@ func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, er
 }
 
 // Initializes profiling and returns a function to defer to stop it.
-func initCpuProfiling(prefix string, memProfileRate int) (func(), error) {
+func initCPUProfiling(prefix string, memProfileRate int) (func(), error) {
 	cpu, err := os.Create(fmt.Sprintf("%s.%v.cpu", prefix, os.Getpid()))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not start CPU profile")

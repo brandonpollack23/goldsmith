@@ -13,11 +13,12 @@ import (
 )
 
 type HorizontalBarsVisualizer struct {
-	Program *tea.Program
+	VisualizerShared
+	program *tea.Program
 }
 
 func (v HorizontalBarsVisualizer) UpdateVisualizer(newFFTData NewFFTData) {
-	v.Program.Send(newFFTData)
+	v.program.Send(newFFTData)
 }
 
 type HorizontalBarsModel struct {
@@ -29,7 +30,7 @@ type HorizontalBarsModel struct {
 	keymap       Keymap
 }
 
-func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) (*HorizontalBarsVisualizer, <-chan struct{}) {
+func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
 	bar := progress.New(progress.WithDefaultGradient())
 
 	m := HorizontalBarsModel{
@@ -42,7 +43,10 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualiz
 
 	p, doneChan := launchTeaProgram(&m, opts)
 
-	return &HorizontalBarsVisualizer{Program: p}, doneChan
+	return &HorizontalBarsVisualizer{
+		program:          p,
+		VisualizerShared: VisualizerShared{done: doneChan},
+	}
 }
 
 func (m HorizontalBarsModel) Init() tea.Cmd {

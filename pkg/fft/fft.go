@@ -2,7 +2,7 @@ package fft
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/gopxl/beep"
 	"github.com/mjibson/go-dsp/fft"
@@ -17,7 +17,7 @@ type FFTStreamerImpl struct {
 	s                    beep.Streamer
 	fftWindowSize        uint32
 	fftWindowBuffer      [][2]float64
-	fftWindowBufferStart int
+	fftWindowBufferStart uint32
 
 	fftInputChan  chan [][2]float64
 	fftWindowChan <-chan FFTWindow
@@ -27,7 +27,7 @@ type FFTStreamerImpl struct {
 	bytesSinceLastWindow uint32
 }
 
-func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Format) FFTStreamerImpl {
+func NewFFTStreamer(streamer beep.Streamer, fftWindowSize uint32, format beep.Format) FFTStreamerImpl {
 	internalBufferSize := fftWindowSize * bufferSizes
 
 	fftInputChan := make(chan [][2]float64, bufferSizes)
@@ -36,7 +36,7 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Forma
 
 	return FFTStreamerImpl{
 		s:                    streamer,
-		fftWindowSize:        uint32(fftWindowSize),
+		fftWindowSize:        fftWindowSize,
 		fftWindowBuffer:      make([][2]float64, internalBufferSize),
 		fftWindowBufferStart: internalBufferSize,
 
@@ -46,17 +46,17 @@ func NewFFTStreamer(streamer beep.Streamer, fftWindowSize int, format beep.Forma
 	}
 }
 
-func (s *FFTStreamerImpl) NextFFTWindow(ctx context.Context) (FFTWindow, error) {
+func (f *FFTStreamerImpl) NextFFTWindow(ctx context.Context) (FFTWindow, error) {
 	select {
-	case <-s.fftUpdateSignalChan:
-		return <-s.fftWindowChan, nil
+	case <-f.fftUpdateSignalChan:
+		return <-f.fftWindowChan, nil
 	case <-ctx.Done():
-		return FFTWindow{}, fmt.Errorf("FFT Streamer canceled!")
+		return FFTWindow{}, errors.New("fft streamer canceled")
 	}
 }
 
-func (s FFTStreamerImpl) Err() error {
-	return s.s.Err()
+func (f FFTStreamerImpl) Err() error {
+	return f.s.Err()
 }
 
 func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
@@ -64,13 +64,13 @@ func (f *FFTStreamerImpl) Stream(samples [][2]float64) (int, bool) {
 	checkFFTSyncSignal(f, copiedFromLastRead)
 
 	if copiedFromLastRead == len(samples) {
-		f.fftWindowBufferStart += copiedFromLastRead
+		f.fftWindowBufferStart += uint32(copiedFromLastRead)
 		return copiedFromLastRead, true
 	}
 
 	_, ok := f.s.Stream(f.fftWindowBuffer)
 	copiedThisRead := copy(samples[copiedFromLastRead:], f.fftWindowBuffer)
-	f.fftWindowBufferStart = copiedThisRead
+	f.fftWindowBufferStart = uint32(copiedThisRead)
 	checkFFTSyncSignal(f, copiedThisRead)
 
 	fftCopy := make([][2]float64, len(f.fftWindowBuffer))
@@ -97,7 +97,7 @@ type FFTWindow struct {
 	Data []complex128
 }
 
-func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWindowSize int) {
+func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWindowSize uint32) {
 	for inChunk := range fftInputChan {
 		for _, in := range splitSlices(inChunk, fftWindowSize) {
 			timeDomain := toMono(in)
@@ -113,10 +113,10 @@ func doFFTs(fftInputChan chan [][2]float64, fftOutputChan chan FFTWindow, fftWin
 	close(fftOutputChan)
 }
 
-func splitSlices[T any](s []T, size int) [][]T {
+func splitSlices[T any](s []T, size uint32) [][]T {
 	var result [][]T
-	for i := 0; i < len(s); i += size {
-		expectedEnd := i + size
+	for i := 0; i < len(s); i += int(size) {
+		expectedEnd := i + int(size)
 		end := min(expectedEnd, len(s))
 
 		result = append(result, s[i:end])

@@ -1,6 +1,8 @@
 package vis
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -22,6 +24,20 @@ var defaultKeymap = Keymap{
 
 type Visualizer interface {
 	UpdateVisualizer(newFFTData NewFFTData)
+	Wait(context.Context) error
+}
+
+type VisualizerShared struct {
+	done <-chan struct{}
+}
+
+func (v VisualizerShared) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return errors.New("timeout")
+	case <-v.done:
+		return nil
+	}
 }
 
 // TODO clean
@@ -56,7 +72,7 @@ func (m *GoldsmithSharedFields) SetShowFPS(f bool) {
 }
 
 func (m GoldsmithSharedFields) GetAverageFPS() float64 {
-	return float64(m.frameCount) / (float64(time.Now().Sub(m.startTime).Seconds()))
+	return float64(m.frameCount) / (float64(time.Since(m.startTime).Seconds()))
 }
 
 func (m GoldsmithSharedFields) GetCurrentFPS() float64 {
@@ -88,10 +104,23 @@ func (m *GoldsmithSharedFields) updateFPS() {
 	m.lastFrameTime = t
 }
 
-func displayFPS(b io.StringWriter, m GoldsmithModel) {
-	b.WriteString(fmt.Sprintf("Frame Count: %d\n", m.GetFrameCount()))
-	b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.GetCurrentFPS()))
-	b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.GetAverageFPS()))
+func displayFPS(b io.StringWriter, m GoldsmithModel) error {
+	_, err := b.WriteString(fmt.Sprintf("Frame Count: %d\n", m.GetFrameCount()))
+	if err != nil {
+		return err
+	}
+
+	_, err = b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.GetCurrentFPS()))
+	if err != nil {
+		return err
+	}
+
+	_, err = b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.GetAverageFPS()))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Shared Options
