@@ -138,7 +138,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
+	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 3*windowDuration)
 	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
 	defer cancel()
 

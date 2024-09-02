@@ -9,8 +9,10 @@ import (
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
 )
 
+type UiKeyType int
+
 const (
-	FFTDeadlineKey = iota
+	FFTDeadlineKey UiKeyType = iota
 )
 
 // FFTStreamer buffers a streamer and also computes an FFT whos chunks are available on [FFTChan].
