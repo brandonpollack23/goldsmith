@@ -28,15 +28,15 @@ type Visualizer interface {
 }
 
 type VisualizerShared struct {
-	done <-chan struct{}
+	done <-chan error
 }
 
 func (v VisualizerShared) Wait(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		return errors.New("timeout")
-	case <-v.done:
-		return nil
+	case err := <-v.done:
+		return err
 	}
 }
 
@@ -137,22 +137,22 @@ func WithFPS(f bool) VisualizerOption {
 
 // Launches the bubble tea visualizer and returns the program handle as well as
 // a done signal channel.
-func launchTeaProgram(m GoldsmithModel, opts []VisualizerOption) (*tea.Program, <-chan struct{}) {
+func launchTeaProgram(m GoldsmithModel, opts []VisualizerOption) (*tea.Program, <-chan error) {
 	for _, opt := range opts {
 		opt(m)
 	}
 
 	p := tea.NewProgram(m, tea.WithoutSignalHandler())
 
-	waitChan := make(chan struct{})
+	waitChan := make(chan error)
 	go func() {
 		if _, err := p.Run(); err != nil {
-			panic("Error occurred: %s" + err.Error())
+			waitChan <- err
+			return
 		}
 
-		if waitChan != nil {
-			waitChan <- struct{}{}
-		}
+		waitChan <- nil
 	}()
+
 	return p, waitChan
 }

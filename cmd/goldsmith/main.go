@@ -108,11 +108,6 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
 	songDuration := format.SampleRate.D(streamer.Len())
 
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
-	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
-	defer cancel()
-
 	// Initialize the speaker to use the sample rate of the audio file selected.
 	// I can also use beep.Resample around the streamer to always use a specific
 	// output sample rate for everything no matter the input.
@@ -133,7 +128,12 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	err = ui.UIUpdateLoop(ctx, &fftStreamer, visualizer)
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 2*windowDuration)
+	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
+	defer cancel()
+
+	err = ui.UpdateLoop(ctx, &fftStreamer, visualizer)
 	if err != nil {
 		return err
 	}
