@@ -27,7 +27,6 @@ type HorizontalBarsModel struct {
 	numBars      int
 	bar          progress.Model
 	maxBarHeight int
-	keymap       Keymap
 }
 
 func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...VisualizerOption) *HorizontalBarsVisualizer {
@@ -36,9 +35,8 @@ func NewHorizontalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualiz
 	m := HorizontalBarsModel{
 		bar:                   bar,
 		numBars:               numBars,
-		keymap:                defaultKeymap,
 		maxBarHeight:          maxBarHeight,
-		GoldsmithSharedFields: initSharedFields(),
+		GoldsmithSharedFields: initSharedFields(defaultKeymap),
 	}
 
 	p, doneChan := launchTeaProgram(&m, opts)
@@ -60,7 +58,7 @@ func (m HorizontalBarsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
-		m.GoldsmithSharedFields.updateFPS()
+		m.updateFPS()
 		m.fftData = msg.Data
 		return m, nil
 
@@ -104,13 +102,9 @@ func (m HorizontalBarsModel) View() string {
 		fmt.Fprintf(&sb, "%s\n", m.bar.ViewAs(barValue))
 	}
 
-	if m.ShowFPS {
-		displayFPS(&sb, &m)
+	if m.showFPS {
+		displayFPS(&sb, m.GoldsmithSharedFields)
 	}
 
 	return sb.String()
-}
-
-func (m *HorizontalBarsModel) SetKeymap(k Keymap) {
-	m.keymap = k
 }

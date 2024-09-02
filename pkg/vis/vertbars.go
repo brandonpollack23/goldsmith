@@ -49,7 +49,7 @@ func NewVerticalBarsVisualizer(numBars int, maxBarHeight int, opts ...Visualizer
 		Empty:                 '░',
 		FullColor:             "#7571F9",
 		EmptyColor:            "#606060",
-		GoldsmithSharedFields: initSharedFields(),
+		GoldsmithSharedFields: initSharedFields(defaultKeymap),
 	}
 
 	p, doneChan := launchTeaProgram(&m, opts)
@@ -113,10 +113,6 @@ func (m VerticalBarsModel) View() string {
 	return m.verticalBarsView(aggregateBars)
 }
 
-func (m *VerticalBarsModel) SetKeymap(k Keymap) {
-	m.keymap = k
-}
-
 func (m VerticalBarsModel) verticalBarsView(aggregateBarPercents []float64) string {
 	padding := " "
 	var b strings.Builder
@@ -144,8 +140,8 @@ func (m VerticalBarsModel) verticalBarsView(aggregateBarPercents []float64) stri
 		b.WriteRune('\n')
 	}
 
-	if m.ShowFPS {
-		displayFPS(&b, &m)
+	if m.showFPS {
+		displayFPS(&b, m.GoldsmithSharedFields)
 	}
 
 	return b.String()

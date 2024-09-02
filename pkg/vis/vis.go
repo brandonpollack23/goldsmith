@@ -45,42 +45,37 @@ type GoldsmithModel interface {
 	tea.Model
 	SetKeymap(k Keymap)
 	SetShowFPS(f bool)
-
-	GetCurrentFPS() float64
-	GetAverageFPS() float64
-	GetFrameCount() int64
 }
 
 type GoldsmithSharedFields struct {
-	ShowFPS       bool
+	showFPS bool
+	keymap  Keymap
+
 	startTime     time.Time
 	lastFrameTime time.Time
 	currentFPS    float64
 	frameCount    int64
 }
 
-func initSharedFields() GoldsmithSharedFields {
+func initSharedFields(keymap Keymap) GoldsmithSharedFields {
 	now := time.Now()
 	return GoldsmithSharedFields{
+		keymap:        keymap,
 		startTime:     now,
 		lastFrameTime: now,
 	}
 }
 
 func (m *GoldsmithSharedFields) SetShowFPS(f bool) {
-	m.ShowFPS = f
+	m.showFPS = f
 }
 
-func (m GoldsmithSharedFields) GetAverageFPS() float64 {
+func (m *GoldsmithSharedFields) SetKeymap(k Keymap) {
+	m.keymap = k
+}
+
+func (m GoldsmithSharedFields) AverageFPS() float64 {
 	return float64(m.frameCount) / (float64(time.Since(m.startTime).Seconds()))
-}
-
-func (m GoldsmithSharedFields) GetCurrentFPS() float64 {
-	return m.currentFPS
-}
-
-func (m GoldsmithSharedFields) GetFrameCount() int64 {
-	return m.frameCount
 }
 
 type Keymap struct {
@@ -105,18 +100,18 @@ func (m *GoldsmithSharedFields) updateFPS() {
 	m.lastFrameTime = t
 }
 
-func displayFPS(b io.StringWriter, m GoldsmithModel) error {
-	_, err := b.WriteString(fmt.Sprintf("Frame Count: %d\n", m.GetFrameCount()))
+func displayFPS(b io.StringWriter, m GoldsmithSharedFields) error {
+	_, err := b.WriteString(fmt.Sprintf("Frame Count: %d\n", m.frameCount))
 	if err != nil {
 		return err
 	}
 
-	_, err = b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.GetCurrentFPS()))
+	_, err = b.WriteString(fmt.Sprintf("Current FPS: %.2f\n", m.currentFPS))
 	if err != nil {
 		return err
 	}
 
-	_, err = b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.GetAverageFPS()))
+	_, err = b.WriteString(fmt.Sprintf("Average FPS: %.2f\n", m.AverageFPS()))
 	if err != nil {
 		return err
 	}
