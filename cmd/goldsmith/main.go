@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,11 +31,12 @@ import (
 // TODO add CTRL for play/pause
 
 var (
-	targetFPS  uint32
-	visType    string
-	showFPS    bool
-	cpuProfile string
-	memProfile string
+	targetFPS       uint32
+	visType         string
+	showFPS         bool
+	runtimeProfiler bool
+	cpuProfile      string
+	memProfile      string
 )
 
 func main() {
@@ -64,6 +67,8 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 		panic(err)
 	}
 
+	rootCmd.PersistentFlags().BoolVarP(&runtimeProfiler, "runtimeProfile", "r", false,
+		"Enable runtime profiler available at port 8080")
 	rootCmd.PersistentFlags().StringVarP(&cpuProfile, "cpu_profile", "p", "",
 		"Emit CPU and memory profiles and an execution trace to '[filename].[pid].{cpu,trace}', respectively")
 	rootCmd.PersistentFlags().StringVarP(&memProfile, "mem_profile", "m", "",
@@ -85,6 +90,10 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		defer stop()
+	}
+
+	if runtimeProfiler {
+		go http.ListenAndServe("localhost:8080", nil)
 	}
 
 	if memProfile != "" {
