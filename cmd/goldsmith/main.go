@@ -15,6 +15,7 @@ import (
 
 	"github.com/brandonpollack23/goldsmith/cmd/goldsmith/ui"
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
+	"github.com/brandonpollack23/goldsmith/pkg/otel"
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
@@ -34,6 +35,7 @@ var (
 	targetFPS       uint32
 	visType         string
 	showFPS         bool
+	otelTracing     bool
 	runtimeProfiler bool
 	cpuProfile      string
 	memProfile      string
@@ -67,6 +69,7 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 		panic(err)
 	}
 
+	rootCmd.PersistentFlags().BoolVarP(&otelTracing, "otel", "o", false, "Enable otel tracing")
 	rootCmd.PersistentFlags().BoolVarP(&runtimeProfiler, "runtimeProfile", "r", false,
 		"Enable runtime profiler available at port 8080")
 	rootCmd.PersistentFlags().StringVarP(&cpuProfile, "cpu_profile", "p", "",
@@ -81,6 +84,20 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 }
 
 func runVisualizer(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	if otelTracing {
+		shutdown, err := otel.SetupOTelSDK(ctx)
+		defer shutdown(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	if runtimeProfiler {
+		go http.ListenAndServe("localhost:8080", nil)
+	}
+
 	if cpuProfile != "" {
 		var (
 			stop func()
@@ -90,10 +107,6 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		defer stop()
-	}
-
-	if runtimeProfiler {
-		go http.ListenAndServe("localhost:8080", nil)
 	}
 
 	if memProfile != "" {
@@ -137,7 +150,6 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	ctx := context.Background()
 	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 3*windowDuration)
 	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
 	defer cancel()
