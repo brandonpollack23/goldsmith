@@ -15,7 +15,7 @@ import (
 
 	"github.com/brandonpollack23/goldsmith/cmd/goldsmith/ui"
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
-	"github.com/brandonpollack23/goldsmith/pkg/otel"
+	otelsetup "github.com/brandonpollack23/goldsmith/pkg/otel"
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
@@ -23,6 +23,7 @@ import (
 	"github.com/gopxl/beep/wav"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel"
 )
 
 // TODO display playback bar at the bottom with timestamp and max time etc.
@@ -39,6 +40,12 @@ var (
 	runtimeProfiler bool
 	cpuProfile      string
 	memProfile      string
+)
+
+const name = "github.com/brandonpollack23/goldsmith/cmd/goldsmith"
+
+var (
+	tracer = otel.Tracer(name)
 )
 
 func main() {
@@ -84,24 +91,29 @@ and audio libraries to bring you some magic bars for visualization. Maybe one da
 }
 
 func runVisualizer(cmd *cobra.Command, args []string) error {
+	var err error
 	ctx := context.Background()
 
 	if otelTracing {
-		shutdown, err := otel.SetupOTelSDK(ctx)
-		defer shutdown(ctx)
+		shutdown, err := otelsetup.SetupOTelSDK(ctx)
+		defer func() {
+			err = fmt.Errorf("error shutting down otel %w", shutdown(ctx))
+		}()
+
 		if err != nil {
 			return err
 		}
 	}
 
 	if runtimeProfiler {
-		go http.ListenAndServe("localhost:8080", nil)
+		go func() {
+			err = http.ListenAndServe("localhost:8080", nil)
+		}()
 	}
 
 	if cpuProfile != "" {
 		var (
 			stop func()
-			err  error
 		)
 		if stop, err = initCPUProfiling(cpuProfile, 0); err != nil {
 			return err
@@ -112,6 +124,9 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	if memProfile != "" {
 		defer saveMemoryProfile(memProfile)
 	}
+
+	ctx, trace := tracer.Start(ctx, "main")
+	defer trace.End()
 
 	audioFile, err := os.Open(args[0])
 	if err != nil {
@@ -127,18 +142,19 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 
 	windowDuration := time.Duration(float64(time.Second) / float64(targetFPS))
 	fftWindowSize := uint32(format.SampleRate.N(windowDuration))
-	fftStreamer := fft.NewFFTStreamer(streamer, fftWindowSize, format)
+	fftStreamer := fft.NewFFTStreamer(ctx, streamer, fftWindowSize, format)
 	songDuration := format.SampleRate.D(streamer.Len())
 
 	// Initialize the speaker to use the sample rate of the audio file selected.
 	// I can also use beep.Resample around the streamer to always use a specific
 	// output sample rate for everything no matter the input.
+	ctx, trace = tracer.Start(ctx, "main.speakerinit")
 	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	trace.End()
 	if err != nil {
 		return fmt.Errorf("cannot initializer speaker: %w", err)
 	}
 
-	speaker.Play(&fftStreamer)
 	var visualizer vis.Visualizer
 	switch visType {
 	case "horizontal_bars":
@@ -154,12 +170,16 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
 	defer cancel()
 
+	speaker.Play(&fftStreamer)
+
+	ctx, trace = tracer.Start(ctx, "updateLoop")
 	err = ui.UpdateLoop(ctx, &fftStreamer, visualizer)
+	trace.End()
 	if err != nil {
-		return err
+		return fmt.Errorf("update loop exited with error %w", err)
 	}
 
-	return nil
+	return err
 }
 
 func decodeAudioFile(audioFile *os.File) (beep.StreamSeekCloser, beep.Format, error) {

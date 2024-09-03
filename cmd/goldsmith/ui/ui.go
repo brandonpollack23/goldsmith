@@ -7,6 +7,13 @@ import (
 
 	"github.com/brandonpollack23/goldsmith/pkg/fft"
 	"github.com/brandonpollack23/goldsmith/pkg/vis"
+	"go.opentelemetry.io/otel"
+)
+
+const name = "github.com/brandonpollack23/goldsmith/cmd/goldsmith/ui"
+
+var (
+	tracer = otel.Tracer(name)
 )
 
 type UiKeyType int
@@ -41,6 +48,8 @@ func UpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer) e
 	}()
 
 	for {
+		ctx, trace := tracer.Start(ctx, "updateLoop.iteration")
+
 		select {
 		case err := <-exitChan:
 			return err
@@ -56,5 +65,7 @@ func UpdateLoop(ctx context.Context, s FFTStreamer, visualizer vis.Visualizer) e
 
 			visualizer.UpdateVisualizer(vis.NewFFTData{Data: nextFFTWindow.Data, Done: !ok})
 		}
+
+		trace.End()
 	}
 }
