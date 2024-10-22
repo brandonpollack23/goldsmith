@@ -166,7 +166,7 @@ func runVisualizer(cmd *cobra.Command, args []string) error {
 		panic("unknown visualizer type: " + visType)
 	}
 
-	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 3*windowDuration)
+	ctx = context.WithValue(ctx, ui.FFTDeadlineKey, 6*windowDuration)
 	ctx, cancel := context.WithTimeout(ctx, songDuration+5*time.Second)
 	defer cancel()
 
